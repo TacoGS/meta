@@ -25,7 +25,7 @@ def versionFromBuildSystemInstaller(installerVersion : MojangVersionFile, instal
         InstallerLib = MultiMCLibrary(name=GradleSpecifier("net.neoforged:%s:%s:installer" % (version.package, version.longVersion)))
         InstallerLib.downloads = MojangLibraryDownloads()
         InstallerLib.downloads.artifact = MojangArtifact()
-        InstallerLib.downloads.artifact.url = "https://maven.neoforged.net/%s" % (InstallerLib.name.getPath())
+        InstallerLib.downloads.artifact.url = "https://maven.neoforged.net/releases/%s" % (InstallerLib.name.getPath())
         InstallerLib.downloads.artifact.sha1 = installerInfo.sha1hash
         InstallerLib.downloads.artifact.size = installerInfo.size
         mavenLibs.append(InstallerLib)
