@@ -51,9 +51,6 @@ main_json = legacy_json + main_json
 
 newIndex = DerivedNeoforgeIndex()
 
-versionExpression = re.compile("^(?P<mcminor>[0-9]+)\\.(?P<mcpatch>[0-9]+)\\.(?P<build>[0-9]+)(?:-(?P<branch>[a-zA-Z0-9_]+))?$")
-legacyVersionExpression = re.compile("^(?P<mc_version>[0-9a-zA-Z_\\.]+)-(?P<version>[0-9\\.]+\\.(?P<build>[0-9]+))(-(?P<branch>[a-zA-Z0-9\\.]+))?$")
-
 def getSingleNeoforgeFilesManifest(longversion, legacy):
     pathThing = "upstream/neoforge/files_manifests/%s.json" % longversion
     files_manifest_file = Path(pathThing)
@@ -101,6 +98,61 @@ def getSingleNeoforgeFilesManifest(longversion, legacy):
 
     return retDict
 
+versionExpression3 = re.compile("^(?P<mcmajor>[0-9]+)\\.(?P<mcminor>[0-9]+)\\.(?P<mcpatch>[0-9]+)\\.(?P<build>[0-9]+)(?:-(?P<branch>[a-zA-Z0-9_]+))?$")
+versionExpression = re.compile("^(?P<mcminor>[0-9]+)\\.(?P<mcpatch>[0-9]+)\\.(?P<build>[0-9]+)(?:-(?P<branch>[a-zA-Z0-9_]+))?$")
+legacyVersionExpression = re.compile("^(?P<mc_version>[0-9a-zA-Z_\\.]+)-(?P<version>[0-9\\.]+\\.(?P<build>[0-9]+))(-(?P<branch>[a-zA-Z0-9\\.]+))?$")
+
+
+def parseVersion(longversion):
+    assert type(longversion) == str
+    match3 = versionExpression3.match(longversion)
+    match = versionExpression.match(longversion)
+    matchLegacy = legacyVersionExpression.match(longversion)
+    fail = False
+
+    if match3:
+        print("match3: %s" % longversion)
+        legacy = False
+        package = "neoforge"
+        branch = match3.group("branch")
+        build = int(match3.group("build"))
+        if match3.group('mcpatch') == '0':
+            if match3.group('mcminor') == '0':
+                mcversion = match3.group('mcmajor')
+            else:
+                mcversion = '%s.%s' % (match3.group('mcmajor'), match3.group('mcminor'))
+        else:
+            mcversion = '%s.%s.%s' % (match3.group('mcmajor'), match3.group('mcminor'), match3.group('mcpatch'))
+        ver = match3.group("build")
+    elif match:
+        print("match: %s" % longversion)
+        legacy = False
+        package = "neoforge"
+        branch = match.group("branch")
+        build = int(match.group("build"))
+        if match.group('mcpatch') == '0':
+            mcversion = '1.%s' % (match.group('mcminor'))
+        else:
+            mcversion = '1.%s.%s' % (match.group('mcminor'), match.group('mcpatch'))
+        ver = match.group("build")
+    elif matchLegacy:
+        print("matchLegacy: %s" % longversion)
+        legacy = True
+        package = "forge"
+        branch = matchLegacy.group("branch")
+        build = int(matchLegacy.group("build"))
+        mcversion = matchLegacy.group("mc_version")
+        ver = matchLegacy.group("version")
+    else:
+        fail = True
+        legacy = False
+        package = "none"
+        branch = "none"
+        build = "0"
+        mcversion = "0"
+        ver = "0"
+    return fail, legacy, package, branch, build, mcversion, ver
+
 print("")
 print("Making dirs...")
 os.makedirs("upstream/neoforge/jars/", exist_ok=True)
@@ -112,32 +164,10 @@ os.makedirs("upstream/neoforge/files_manifests/", exist_ok=True)
 print("")
 print("Processing versions:")
 for longversion in main_json:
-    assert type(longversion) == str
-    match = versionExpression.match(longversion)
-    legacy = False
+    fail, legacy, package, branch, build, mcversion, ver = parseVersion(longversion)
 
-    if not match:
-        match = legacyVersionExpression.match(longversion)
-        if not match:
-            pprint(longversion)
-            continue
-#            assert match
-        legacy = True
-        package = "forge"
-        branch = match.group("branch")
-        build = int(match.group("build"))
-        mcversion = match.group("mc_version")
-        ver = match.group("version")
-    else:
-        package = "neoforge"
-        branch = match.group("branch")
-        build = int(match.group("build"))
-        if match.group('mcpatch') == '0':
-            mcversion = '1.%s' % (match.group('mcminor'))
-        else:
-            mcversion = '1.%s.%s' % (match.group('mcminor'), match.group('mcpatch'))
-        ver = match.group("build")
-
+    if fail:
+        continue
     try:
         files = getSingleNeoforgeFilesManifest(longversion, legacy)
     except requests.exceptions.HTTPError as err:
